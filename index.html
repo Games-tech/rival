@@ -126,9 +126,61 @@ const GUN={Rifle:RF,
 try{const s=JSON.parse(localStorage.getItem("arena")||"{}");coins=+s.c||0;(s.o||[]).forEach(i=>WP[i]&&own.add(i));(s.s||[]).forEach(i=>SK[i]&&skins.add(i));if(skins.has(s.k))skin=s.k}catch(e){}
 const save=()=>{try{localStorage.setItem("arena",JSON.stringify({c:coins,o:[...own],s:[...skins],k:skin}))}catch(e){}};
 const wpTxt=()=>{$("wp").textContent=WP[me.w].n+" ["+(me.w+1)+"] · 🪙 "+coins};
-function buildVm(){while(vm.children.length)vm.remove(vm.children[0]);const S=SK[skin],acc=S.c||[0x8a93a3,0xdfe6ee,0x3a6ea5,0x8b5a2b,0xf5cd30,0x1f6f4a][me.w],
- mats=[new THREE.MeshLambertMaterial({color:0x4a515c}),new THREE.MeshLambertMaterial({color:0x1c2026}),new THREE.MeshLambertMaterial({color:acc,emissive:S.g?acc:0,emissiveIntensity:.6})];
- for(const[k,a,b,c,m,x,y,z]of GUN[WP[me.w].n]){const p=new THREE.Mesh(k==="b"?new THREE.BoxGeometry(a,b,c):new THREE.CylinderGeometry(a,a,b,10),mats[m]);p.position.set(x,y,z);if(k==="c")p.rotation.x=Math.PI/2;vm.add(p)}}
+function buildVm(){
+ while(vm.children.length)vm.remove(vm.children[0]);
+ const name=WP[me.w].n,S=SK[skin],acc=S.c||[0x8a93a3,0xdfe6ee,0x3a6ea5,0x8b5a2b,0xf5cd30,0x1f6f4a][me.w];
+ const mats=[
+  new THREE.MeshLambertMaterial({color:0x566170}),
+  new THREE.MeshLambertMaterial({color:0x171d26}),
+  new THREE.MeshLambertMaterial({color:acc,emissive:S.g?acc:0,emissiveIntensity:.6}),
+  new THREE.MeshLambertMaterial({color:0x9eabb9}),
+  new THREE.MeshLambertMaterial({color:0x10151c,emissive:0x153a52,emissiveIntensity:.45})
+ ];
+ const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);vm.add(o);return o};
+ const B=(mat,x,y,z,w,h,d)=>add(new THREE.BoxGeometry(w,h,d),mats[mat],x,y,z);
+ const C=(mat,x,y,z,r1,r2,len)=>add(new THREE.CylinderGeometry(r1,r2,len,12),mats[mat],x,y,z,Math.PI/2);
+ // original weapon silhouettes
+ for(const[k,a,b,c,m,x,y,z]of GUN[name]){
+  const o=new THREE.Mesh(k==="b"?new THREE.BoxGeometry(a,b,c):new THREE.CylinderGeometry(a,a,b,12),mats[m]);
+  o.position.set(x,y,z);if(k==="c")o.rotation.x=Math.PI/2;vm.add(o)
+ }
+ // universal machined details: receiver rails, screws, muzzle collar and sight
+ if(name!=="Knife"){
+  B(1,0,.105,-.22,.16,.035,.34);
+  B(3,0,.132,-.31,.095,.025,.19);
+  B(2,-.075,.015,-.22,.018,.09,.22);
+  B(2,.075,.015,-.22,.018,.09,.22);
+  for(const x of [-.055,.055])for(const z of [-.12,-.28])add(new THREE.CylinderGeometry(.012,.012,.012,10),mats[3],x,.075,z,Math.PI/2,0,0);
+  B(1,0,.18,-.12,.075,.075,.09);
+  B(4,0,.225,-.13,.045,.018,.045);
+  C(3,0,-.015,-.55,.045,.045,.055);
+ }
+ if(name==="Rifle"||name==="Gold Rifle"){
+  B(1,0,-.095,.12,.12,.12,.3);B(2,0,-.03,.22,.14,.05,.12);
+  B(3,0,.16,-.18,.045,.065,.06);
+  B(1,-.105,.045,-.35,.035,.055,.22);B(1,.105,.045,-.35,.035,.055,.22);
+  if(name==="Gold Rifle"){B(2,0,.02,-.38,.18,.055,.1);B(3,0,.25,-.18,.08,.025,.08)}
+ }else if(name==="SMG"){
+  B(1,0,-.1,.02,.09,.11,.18);B(2,0,-.04,.15,.11,.04,.13);
+  B(3,0,.16,-.2,.06,.055,.075);B(1,0,.04,-.42,.11,.06,.08);
+ }else if(name==="Shotgun"){
+  B(1,0,-.1,.12,.15,.14,.34);B(2,0,-.02,.25,.17,.06,.13);
+  B(3,0,.15,-.2,.07,.07,.08);C(3,0,-.005,-.62,.06,.06,.07);
+  B(1,-.105,.02,-.48,.035,.08,.18);B(1,.105,.02,-.48,.035,.08,.18);
+ }else if(name==="Sniper"){
+  B(1,0,.19,-.18,.12,.08,.27);B(2,0,.25,-.18,.19,.035,.12);
+  C(4,0,.28,-.19,.055,.055,.2);C(3,0,.28,-.19,.065,.065,.035);
+  B(1,0,-.09,.15,.12,.13,.32);B(2,0,-.02,.29,.15,.045,.12);
+  B(3,0,.16,-.22,.045,.06,.06);
+ }else if(name==="Knife"){
+  // layered blade, guard, grip and pommel
+  B(3,0,.015,-.34,.045,.025,.38);
+  B(2,0,.025,-.48,.025,.012,.3);
+  B(1,0,-.015,-.12,.13,.045,.07);
+  for(let i=0;i<4;i++)B(3,0,-.015,-.015+i*.035,.09,.012,.018);
+  add(new THREE.SphereGeometry(.035,10,8),mats[3],0,-.015,.03);
+ }
+}
 function setW(i){if(!WP[i]||!own.has(i))return;me.w=i;buildVm();wpTxt()}
 function openCrate(){if(coins<100||lastDrop==="Opening…")return;coins-=100;let r=Math.random()*100,t=LOOT[0],msg;for(const l of LOOT){r-=l[2];if(r<0){t=l;break}}
  if(t[0]==="w"){if(own.has(t[1])){coins+=40;msg="Duplicate "+WP[t[1]].n+" — refunded 🪙40"}else{own.add(t[1]);msg="NEW WEAPON: "+WP[t[1]].n+"!"}}
@@ -170,10 +222,58 @@ const myId=()=>room&&room.peers().find(p=>p.isMe&&p.sameTab)?.peer;
 const send=(t,d)=>{if(room)room.emit(t,d).catch(()=>{})};
 const rs=(o,d,cx,cy,cz,r)=>{const x=cx-o.x,y=cy-o.y,z=cz-o.z,t=x*d.x+y*d.y+z*d.z;if(t<0)return null;const d2=x*x+y*y+z*z-t*t;return d2>r*r?null:t-Math.sqrt(r*r-d2)};
 const dk=new THREE.MeshLambertMaterial({color:0x222831}),skinMat=new THREE.MeshLambertMaterial({color:0xf1c9a5});
-function mk(h){const g=new THREE.Group(),m=new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(h,.7,.5)});
- const b=new THREE.Mesh(new THREE.BoxGeometry(.7,1.1,.4),m);b.position.y=.85;const hd=new THREE.Mesh(new THREE.BoxGeometry(.4,.4,.4),skinMat);hd.position.y=1.65;
- const gn=new THREE.Mesh(new THREE.BoxGeometry(.12,.14,.7),dk);gn.position.set(.35,1,-.4);const lg=new THREE.Mesh(new THREE.BoxGeometry(.5,.3,.3),dk);lg.position.y=.15;
- g.add(b,hd,gn,lg);scene.add(g);return g}
+function mk(h){
+ const g=new THREE.Group();
+ const team=new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(h,.78,.48)});
+ const dark=new THREE.MeshLambertMaterial({color:0x17202b});
+ const armor=new THREE.MeshLambertMaterial({color:0x394657});
+ const trim=new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(h,.9,.66),emissive:new THREE.Color().setHSL(h,.9,.24),emissiveIntensity:.65});
+ const visor=new THREE.MeshLambertMaterial({color:0x07131f,emissive:0x123e58,emissiveIntensity:.7});
+ const metal=new THREE.MeshLambertMaterial({color:0x9aa8b8,metalness:.35});
+ const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0)=>{const o=new THREE.Mesh(geo,mat);o.position.set(x,y,z);o.rotation.set(rx,ry,rz);g.add(o);return o};
+ const box=(mat,x,y,z,w,ht,d,rx=0,ry=0,rz=0)=>add(new THREE.BoxGeometry(w,ht,d),mat,x,y,z,rx,ry,rz);
+ const ball=(mat,x,y,z,sx,sy,sz)=>{const o=add(new THREE.SphereGeometry(1,12,10),mat,x,y,z);o.scale.set(sx,sy,sz);return o};
+ // armored torso, waist and chest plating
+ box(dark,0,.91,0,.66,.78,.36);
+ box(team,0,1.02,-.015,.72,.56,.39);
+ box(armor,0,1.18,-.225,.48,.42,.075);
+ box(trim,0,1.18,-.27,.24,.055,.025);
+ box(dark,0,.55,0,.48,.2,.32);
+ box(armor,0,.55,-.19,.4,.13,.07);
+ // shoulders and segmented arms
+ for(const s of [-1,1]){
+   ball(team,s*.43,1.28,0,.2,.19,.2);
+   box(armor,s*.47,1.08,0,.19,.38,.2,0,0,s*-.12);
+   box(team,s*.49,.91,-.015,.16,.19,.18);
+   box(dark,s*.49,.79,-.015,.17,.13,.18);
+   box(trim,s*.49,1.13,-.115,.12,.045,.025);
+   // legs, knee guards and boots
+   box(dark,s*.18,.32,0,.22,.43,.25);
+   box(team,s*.18,.34,-.02,.23,.27,.27);
+   box(armor,s*.18,.18,-.16,.19,.13,.07);
+   box(dark,s*.18,.075,-.055,.25,.13,.38);
+   box(metal,s*.18,.08,-.24,.18,.045,.025);
+ }
+ // helmet, brow, glowing visor and comms
+ ball(dark,0,1.72,0,.27,.3,.25);
+ box(team,0,1.77,-.015,.43,.22,.39);
+ box(visor,0,1.76,-.222,.34,.105,.035);
+ box(trim,0,1.84,-.224,.28,.025,.025);
+ box(armor,0,1.96,.015,.22,.07,.2);
+ for(const s of [-1,1]){
+   ball(metal,s*.255,1.72,0,.055,.09,.07);
+   ball(trim,s*.29,1.72,-.01,.025,.035,.035);
+ }
+ // back-mounted pack, vents and antenna
+ box(dark,0,1.03,.245,.42,.52,.2);
+ box(armor,0,1.12,.36,.3,.31,.08);
+ for(let i=0;i<3;i++)box(trim,-.1+i*.1,1.12,.407,.035,.2,.018);
+ add(new THREE.CylinderGeometry(.018,.025,.25,8),metal,.16,1.47,.27);
+ ball(trim,.16,1.6,.27,.045,.045,.045);
+ // small chest emblem and utility belt
+ box(trim,0,.73,-.205,.12,.07,.035);
+ for(let s of [-1,1])box(metal,s*.13,.55,-.22,.055,.09,.035);
+ g.add(new THREE.Group());scene.add(g);return g}
 const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h/360};
 const num=(v,m)=>Number.isFinite(v)?Math.max(-m,Math.min(m,v)):0;
 function score(){const rows=[{n:me.name+" (you)",k:me.k,d:me.d},...peersNow.filter(p=>!p.sameTab).map(p=>({n:String(p.presence.n||"Player").slice(0,12),k:+p.presence.k||0,d:+p.presence.d||0}))].sort((a,b)=>b.k-a.k);
