@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arena Rivals</title>
+<style>
+:root{--bg:#dfe6ef;--fg:#14171f;--panel:rgba(255,255,255,.86);--acc:#e0364a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#10131a;--fg:#f2f4f8;--panel:rgba(16,19,26,.82);--acc:#ff4d5e}}
+:root[data-theme="dark"]{--bg:#10131a;--fg:#f2f4f8;--panel:rgba(16,19,26,.82);--acc:#ff4d5e}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.p{background:var(--panel);border-radius:8px;padding:6px 10px;font-size:13px;position:fixed}
+#xh{position:fixed;left:50%;top:50%;width:14px;height:14px;margin:-7px;border:2px solid #fff;border-radius:50%;mix-blend-mode:difference;transition:.08s}
+#xh.h{border-color:#f33;transform:scale(1.8)}
+#hp{left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);width:190px}
+#hpb{height:8px;background:rgba(128,128,128,.35);border-radius:4px;overflow:hidden;margin-top:4px}
+#hpf{display:block;height:100%;width:100%;background:#3bd16f}
+#wp{right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px)}
+#sb{right:12px;top:calc(env(safe-area-inset-top,0px) + 12px);min-width:170px}
+#sb div{display:flex;justify-content:space-between;gap:14px}
+#feed{left:12px;top:calc(env(safe-area-inset-top,0px) + 12px);background:none;padding:0}
+#feed div{background:var(--panel);margin-bottom:4px;padding:3px 8px;border-radius:6px;font-size:13px}
+#st{left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 12px);font-size:12px}
+#fl{position:fixed;inset:0;background:#f00;opacity:0;pointer-events:none;transition:opacity .25s}
+#dead{position:fixed;left:50%;top:38%;transform:translateX(-50%);font-size:26px;font-weight:700;display:none;color:#fff;text-shadow:0 2px 6px #000}
+#ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45)}
+.card{background:var(--panel);backdrop-filter:blur(8px);padding:22px 26px;border-radius:14px;max-width:min(420px,92vw);text-align:left}
+.card h1{margin:0 0 6px;font-size:24px}.card p{margin:6px 0;font-size:13px;line-height:1.45}
+.card input{width:100%;box-sizing:border-box;padding:8px;margin:3px 0 8px;border-radius:6px;border:1px solid rgba(128,128,128,.5);background:transparent;color:var(--fg);font-size:14px}
+.card button{width:100%;padding:11px;border:0;border-radius:8px;background:var(--acc);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+#shop div{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;margin:3px 0}#shop button{width:auto;padding:4px 10px;font-size:12px}#shop button:disabled,#crate button:disabled{opacity:.5;cursor:default}#crate div button{width:auto;padding:4px 10px;font-size:12px;margin:2px}#crate{margin:8px 0}
+#ban{position:fixed;left:50%;top:22%;transform:translateX(-50%);font-size:30px;font-weight:800;color:#fff;text-shadow:0 2px 8px #000;display:none;white-space:nowrap}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="xh"></div><div id="fl"></div><div id="dead">Eliminated — respawning…</div><div id="ban"></div>
+<div id="hp" class="p">Health <b id="hpt">100</b><div id="hpb"><i id="hpf"></i></div></div>
+<div id="wp" class="p"></div><div id="sb" class="p"></div><div id="feed"></div><div id="st" class="p"></div>
+<div id="ov"><div class="card">
+<h1>🎯 Arena Rivals</h1>
+<p><b>WASD</b> move · <b>Space</b> jump · <b>Mouse</b> aim &amp; fire · <b>1–6</b> weapons · <b>B</b> shop · <b>Esc</b> pause. Headshots do double damage. Desktop keyboard and mouse only.</p>
+<label>Nickname<input id="nick" maxlength="12"></label>
+<label>Room code<input id="room" maxlength="24" value="arena1"></label>
+<p><b>Shop</b> <span id="coins"></span> — earn 🪙 25 per kill and 150 for winning a match (first to 10 kills). Press <b>B</b> in game to shop.</p><div id="shop"></div><div id="crate"></div><button id="go">Play</button>
+<p>Everyone who enters the same room code fights in the same arena.</p>
+<p>If the mouse won’t lock in your browser, hold right-click to look around.</p>
+</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+// ===== PASTE YOUR FIREBASE CONFIG HERE (see SETUP.md) =====
+const FIREBASE_CONFIG={apiKey:"PASTE_API_KEY",authDomain:"YOUR_PROJECT.firebaseapp.com",databaseURL:"https://YOUR_PROJECT-default-rtdb.firebaseio.com",projectId:"YOUR_PROJECT",appId:"PASTE_APP_ID"};
+// ==========================================================
+// Small adapter so the game talks to Firebase through the same calls it used for the Claude room.
+async function fbRoom(code){
+ if(!FIREBASE_CONFIG.apiKey||FIREBASE_CONFIG.apiKey.startsWith("PASTE"))throw new Error("add your Firebase config at the top of index.html");
+ firebase.initializeApp(FIREBASE_CONFIG);
+ await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION);
+ const uid=(await firebase.auth().signInAnonymously()).user.uid,db=firebase.database(),SV=firebase.database.ServerValue;
+ const base=db.ref("rooms/"+code),mine=base.child("players/"+uid),pl=base.child("players");
+ mine.onDisconnect().remove();
+ const off=(await db.ref(".info/serverTimeOffset").once("value")).val()||0;
+ const pm={},cbs=[],hs={},seen=new Set(),pr={};let peers=[],conn=false,last="";pm[uid]={};
+ const push=()=>{peers=Object.keys(pm).map(k=>({peer:k,isMe:k===uid,sameTab:k===uid,presence:pm[k]}));cbs.forEach(f=>f({peers}))};
+ ["child_added","child_changed"].forEach(ev=>pl.on(ev,s=>{pm[s.key]=s.val()||{};push()}));
+ pl.on("child_removed",s=>{if(s.key!==uid){delete pm[s.key];push()}});
+ db.ref(".info/connected").on("value",s=>{conn=!!s.val()});
+ base.child("events").orderByChild("ts").startAt(Date.now()+off-1000).on("child_added",s=>{
+  if(seen.has(s.key))return;if(seen.size>500)seen.clear();seen.add(s.key);const e=s.val()||{};
+  (hs[e.k]||[]).forEach(f=>f({topic:e.k,data:e.d,peer:e.by,isMe:e.by===uid,sameTab:e.by===uid}))});
+ push();
+ return{peers:()=>peers,connected:()=>conn,
+  presence(p){Object.assign(pr,p);const j=JSON.stringify(pr);if(j===last)return Promise.resolve();last=j;return mine.set(pr)},
+  emit(t,d){const r=base.child("events").push({k:t,d:d===undefined?null:d,by:uid,ts:SV.TIMESTAMP});setTimeout(()=>r.remove(),4000);return Promise.resolve()},
+  on(t,f){(hs[t]=hs[t]||[]).push(f);return()=>{hs[t]=hs[t].filter(x=>x!==f)}},
+  onPeers(f){cbs.push(f);f({peers});return()=>{}}}}
+</script>
+<script>
+const $=id=>document.getElementById(id),cv=$("c"),R=.4,SPD=7;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x9cc3ee);scene.fog=new THREE.Fog(0x9cc3ee,30,95);
+const cam=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.05,200);cam.rotation.order="YXZ";scene.add(cam);
+const rend=new THREE.WebGLRenderer({canvas:cv,antialias:true});rend.setPixelRatio(Math.min(devicePixelRatio,2));rend.setSize(innerWidth,innerHeight);
+scene.add(new THREE.HemisphereLight(0xffffff,0x556070,.95));const sun=new THREE.DirectionalLight(0xffffff,.6);sun.position.set(10,20,5);scene.add(sun);
+addEventListener("resize",()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();rend.setSize(innerWidth,innerHeight)});
+const boxes=[],solids=[];
+function box(x,z,w,d,h,c){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(0,0,.3+h*.05)}));m.position.set(x,h/2,z);m.add(edge(m.geometry));scene.add(m);solids.push(m);boxes.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,h})}
+const edge=g=>new THREE.LineSegments(new THREE.EdgesGeometry(g),new THREE.LineBasicMaterial({color:0x000000,transparent:true,opacity:.4}));
+const ramp=(cx,cz,L,d,h,dir,c)=>{const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute([0,0,0,L,0,0,L,h,0,0,0,d,L,0,d,L,h,d],3));g.setIndex([0,1,2,3,5,4,0,1,4,0,4,3,0,2,5,0,5,3,1,4,5,1,5,2]);g.translate(-L/2,0,-d/2);g.computeVertexNormals();
+ const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(0,0,.3+h*.05),side:THREE.DoubleSide}));m.rotation.y=[0,Math.PI,-Math.PI/2,Math.PI/2][dir];m.position.set(cx,0,cz);m.add(edge(g));scene.add(m);solids.push(m);
+ const X=dir<2,w=X?L:d,e=X?d:L;boxes.push({x0:cx-w/2,x1:cx+w/2,z0:cz-e/2,z1:cz+e/2,h,r:{a:X?"x":"z",s:dir%2?-1:1}})};
+const part=(x,z,w,d,y0,y1)=>{const h=y1-y0,m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(0,0,.42)}));m.position.set(x,y0+h/2,z);m.add(edge(m.geometry));scene.add(m);solids.push(m)};
+const wnd=(x,z,w,d)=>{const X=w>d,L=X?w:d,o=L/2-.6;boxes.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,h:4.5});part(x,z,w,d,0,1.3);part(x,z,w,d,2.7,4.5);
+ for(const s of[-1,1])part(X?x+s*o:x,X?z:z+s*o,X?1.2:w,X?d:1.2,1.3,2.7)};
+const ct=document.createElement("canvas");ct.width=ct.height=64;const c2=ct.getContext("2d");c2.fillStyle="#b4bac4";c2.fillRect(0,0,64,64);c2.fillStyle="#9ea5b1";c2.fillRect(0,0,32,32);c2.fillRect(32,32,32,32);
+const ft=new THREE.CanvasTexture(ct);ft.wrapS=ft.wrapT=THREE.RepeatWrapping;ft.repeat.set(16,16);
+const fl=new THREE.Mesh(new THREE.PlaneGeometry(64,64),new THREE.MeshLambertMaterial({map:ft}));fl.rotation.x=-Math.PI/2;scene.add(fl);solids.push(fl);
+box(0,-32,66,1,5,0x39414f);box(0,32,66,1,5,0x39414f);box(-32,0,1,64,5,0x39414f);box(32,0,1,64,5,0x39414f);
+[[13,13,3,3,1.2],[3,20,4,4,2.4],[20,3,4,4,2.4],[7,5,5,5,1.8],[22,22,12,12,3.6],[27,7.5,6,9,1.8],[7.5,27,9,6,1.8]].forEach(([x,z,w,d,h,c])=>[[1,1],[-1,1],[1,-1],[-1,-1]].forEach(([a,b])=>box(x*a,z*b,w,d,h,c)));
+box(0,0,8,8,3.6);ramp(0,7,6,4,3.6,3);ramp(0,-7,6,4,3.6,2);ramp(7,0,6,4,3.6,1);ramp(-7,0,6,4,3.6,0);
+[[1,1],[-1,1],[1,-1],[-1,-1]].forEach(([a,b])=>{ramp(13*a,22*b,6,4,3.6,a>0?0:1);ramp(22*a,13*b,6,4,3.6,b>0?2:3);ramp(7*a,9*b,3,3,1.8,b>0?3:2);wnd(18*a,9*b,8,1);wnd(9*a,20*b,1,6);wnd(7*a,12*b,8,1);wnd(12*a,7*b,1,8)});
+const hgt=(b,x,z)=>{if(!b.r)return b.h;const t=Math.max(0,Math.min(1,b.r.a==="x"?(x-b.x0)/(b.x1-b.x0):(z-b.z0)/(b.z1-b.z0)));return b.h*(b.r.s>0?t:1-t)};
+const blocked=(x,z,y)=>boxes.some(b=>x>b.x0-R&&x<b.x1+R&&z>b.z0-R&&z<b.z1+R&&hgt(b,x,z)>y+.6);
+const ground=(x,z,y)=>{let g=0;for(const b of boxes)if(x>b.x0-.2&&x<b.x1+.2&&z>b.z0-.2&&z<b.z1+.2){const h=hgt(b,x,z);if(h<=y+.6&&h>g)g=h}return g};
+const WP=[{n:"Rifle",$:0,d:18,r:.11,p:1,s:.012,rng:90,c:0x222831,sc:[.08,.1,.55]},{n:"Knife",$:0,d:55,r:.5,p:1,s:0,rng:2.6,c:0xdfe6ee,sc:[.02,.07,.4]},{n:"SMG",$:75,d:11,r:.06,p:1,s:.035,rng:70,c:0x3a6ea5,sc:[.08,.1,.4]},{n:"Shotgun",$:150,d:11,r:.85,p:8,s:.07,rng:40,c:0x6b4a2b,sc:[.1,.1,.6]},{n:"Gold Rifle",$:300,d:26,r:.09,p:1,s:.006,rng:100,c:0xf5cd30,sc:[.08,.1,.6]},{n:"Sniper",$:450,d:75,r:1.1,p:1,s:0,rng:220,c:0x1f6f4a,sc:[.07,.09,.95]}];
+const vm=new THREE.Group();vm.position.set(.3,-.28,-.6);vm.scale.setScalar(.8);cam.add(vm);
+const me={p:new THREE.Vector3(),vy:0,yaw:0,pitch:0,hp:100,alive:true,w:0,cd:0,k:0,d:0,name:"Player"+(100+Math.random()*900|0)};
+const own=new Set([0,1]),skins=new Set([0]);let coins=0,skin=0,lastDrop="";
+const SK=[{n:"Default"},{n:"Crimson",c:0xc4281c},{n:"Ice",c:0x6fd3ff},{n:"Neon",c:0x39ff88,g:1},{n:"Gold",c:0xf5cd30},{n:"Void",c:0x7a3cff,g:1}];
+const LOOT=[["w",2,20],["w",3,14],["w",4,8],["w",5,5],["s",1,15],["s",2,14],["s",3,10],["s",4,8],["s",5,6]];
+const RF=[["b",.07,.1,.42,0,0,0,0],["b",.06,.07,.26,1,0,-.01,-.32],["c",.012,.36,0,0,0,.01,-.62],["b",.02,.035,.05,1,0,.07,-.12],["b",.04,.13,.06,1,0,-.11,-.02],["b",.045,.1,.2,1,0,-.01,.3],["b",.04,.09,.05,1,0,-.09,.12],["b",.074,.018,.3,2,0,.055,-.05]];
+const GUN={Rifle:RF,
+ Knife:[["b",.022,.05,.3,2,0,0,-.2],["b",.012,.03,.1,2,0,0,-.4],["b",.09,.02,.02,0,0,0,-.04],["b",.03,.04,.14,1,0,-.01,.05],["b",.04,.045,.03,0,0,-.01,.13]],
+ SMG:[["b",.065,.09,.28,0,0,0,0],["b",.05,.06,.14,1,0,0,-.2],["c",.011,.16,0,0,0,.01,-.35],["b",.035,.17,.05,1,0,-.12,.02],["b",.03,.08,.04,1,0,-.08,.1],["b",.068,.016,.2,2,0,.05,-.03],["b",.02,.03,.04,1,0,.065,-.1],["b",.03,.06,.08,1,0,-.01,.2]],
+ Shotgun:[["b",.07,.09,.3,1,0,0,0],["c",.02,.65,0,0,0,.02,-.45],["c",.016,.5,0,0,0,-.03,-.4],["b",.075,.06,.16,2,0,-.03,-.28],["b",.05,.1,.28,1,0,-.02,.28],["b",.04,.08,.05,1,0,-.08,.1],["b",.012,.02,.012,0,0,.045,-.76]],
+ "Gold Rifle":RF.concat([["c",.028,.22,0,1,0,.1,-.08],["b",.03,.04,.03,0,0,.065,-.02],["b",.03,.04,.03,0,0,.065,-.16],["b",.08,.03,.12,2,0,0,-.55]]),
+ Sniper:[["b",.065,.095,.5,0,0,0,0],["c",.014,.7,0,0,0,.01,-.8],["c",.03,.24,0,1,0,.105,-.05],["b",.03,.03,.03,0,0,.065,-.12],["b",.03,.03,.03,0,0,.065,.04],["b",.05,.11,.3,1,0,-.01,.38],["b",.04,.09,.05,1,0,-.09,.18],["b",.04,.1,.06,1,0,-.09,-.08],["b",.074,.018,.4,2,0,.058,-.02],["c",.02,.08,0,2,0,.01,-1.17],["b",.05,.02,.02,0,.06,.03,.1]]};
+try{const s=JSON.parse(localStorage.getItem("arena")||"{}");coins=+s.c||0;(s.o||[]).forEach(i=>WP[i]&&own.add(i));(s.s||[]).forEach(i=>SK[i]&&skins.add(i));if(skins.has(s.k))skin=s.k}catch(e){}
+const save=()=>{try{localStorage.setItem("arena",JSON.stringify({c:coins,o:[...own],s:[...skins],k:skin}))}catch(e){}};
+const wpTxt=()=>{$("wp").textContent=WP[me.w].n+" ["+(me.w+1)+"] · 🪙 "+coins};
+function buildVm(){while(vm.children.length)vm.remove(vm.children[0]);const S=SK[skin],acc=S.c||[0x8a93a3,0xdfe6ee,0x3a6ea5,0x8b5a2b,0xf5cd30,0x1f6f4a][me.w],
+ mats=[new THREE.MeshLambertMaterial({color:0x4a515c}),new THREE.MeshLambertMaterial({color:0x1c2026}),new THREE.MeshLambertMaterial({color:acc,emissive:S.g?acc:0,emissiveIntensity:.6})];
+ for(const[k,a,b,c,m,x,y,z]of GUN[WP[me.w].n]){const p=new THREE.Mesh(k==="b"?new THREE.BoxGeometry(a,b,c):new THREE.CylinderGeometry(a,a,b,10),mats[m]);p.position.set(x,y,z);if(k==="c")p.rotation.x=Math.PI/2;vm.add(p)}}
+function setW(i){if(!WP[i]||!own.has(i))return;me.w=i;buildVm();wpTxt()}
+function openCrate(){if(coins<100||lastDrop==="Opening…")return;coins-=100;let r=Math.random()*100,t=LOOT[0],msg;for(const l of LOOT){r-=l[2];if(r<0){t=l;break}}
+ if(t[0]==="w"){if(own.has(t[1])){coins+=40;msg="Duplicate "+WP[t[1]].n+" — refunded 🪙40"}else{own.add(t[1]);msg="NEW WEAPON: "+WP[t[1]].n+"!"}}
+ else{if(skins.has(t[1])){coins+=25;msg="Duplicate "+SK[t[1]].n+" skin — refunded 🪙25"}else{skins.add(t[1]);msg="NEW SKIN: "+SK[t[1]].n+"!"}}
+ save();wpTxt();lastDrop="Opening…";renderShop();setTimeout(()=>{lastDrop=msg;renderShop()},900)}
+function crateUI(){const c=$("crate"),b=document.createElement("button"),m=document.createElement("div"),k=document.createElement("div");c.textContent="";
+ b.textContent="📦 Open crate — 🪙100";b.disabled=coins<100||lastDrop==="Opening…";b.onclick=openCrate;m.textContent=lastDrop;m.style.cssText="margin:6px 0;font-weight:700;min-height:18px";
+ SK.forEach((S,i)=>{if(!skins.has(i))return;const x=document.createElement("button");x.textContent=(skin===i?"✓ ":"")+S.n;x.onclick=()=>{skin=i;save();buildVm();renderShop()};k.appendChild(x)});
+ c.append(b,m,k)}
+function spawn(){const S=[[0,29],[0,-29],[29,0],[-29,0]],s=S[Math.random()*4|0];me.p.set(s[0],0,s[1]);me.yaw=Math.atan2(s[0],s[1]);me.pitch=0;me.vy=0;me.hp=100;me.alive=true;$("dead").style.display="none";hud()}
+function hud(){$("hpt").textContent=Math.max(0,me.hp|0);const f=$("hpf");f.style.width=Math.max(0,me.hp)+"%";f.style.background=me.hp>50?"#3bd16f":me.hp>25?"#f0b429":"#f0443a"}
+setW(0);spawn();
+const keys={};let firing=false,active=false,drag=false,started=false;
+addEventListener("keydown",e=>{keys[e.code]=1;if(/^Digit[1-6]$/.test(e.code))setW(+e.code[5]-1);if(e.code==="KeyB")openMenu();if(e.code==="Space")e.preventDefault()});
+addEventListener("keyup",e=>keys[e.code]=0);
+addEventListener("mousemove",e=>{if(!active||!me.alive)return;if(document.pointerLockElement===cv||(drag&&e.buttons&2)){me.yaw-=e.movementX*.0022;me.pitch=Math.max(-1.5,Math.min(1.5,me.pitch-e.movementY*.0022))}});
+cv.addEventListener("mousedown",e=>{if(e.button===0)firing=true});addEventListener("mouseup",e=>{if(e.button===0)firing=false});
+addEventListener("contextmenu",e=>e.preventDefault());
+document.addEventListener("pointerlockchange",()=>{active=document.pointerLockElement===cv||(drag&&started);$("ov").style.display=active?"none":"flex";if(!active){firing=false;renderShop()}});
+document.addEventListener("pointerlockerror",()=>{drag=true;active=started;$("ov").style.display=active?"none":"flex"});
+$("nick").value=me.name;
+function renderShop(){$("coins").textContent="🪙 "+coins;const s=$("shop");s.textContent="";WP.forEach((W,i)=>{const d=document.createElement("div"),a=document.createElement("span"),b=document.createElement("button"),o=own.has(i);if(!o)return;
+ a.textContent=(i+1)+". "+W.n+" — "+(W.p>1?W.p+"×":"")+W.d+" dmg";b.textContent=o?(me.w===i?"Equipped":"Equip"):"Buy 🪙"+W.$;b.disabled=o?me.w===i:coins<W.$;
+ b.onclick=()=>{if(!own.has(i)&&coins>=W.$){coins-=W.$;own.add(i);save()}setW(i);renderShop()};d.append(a,b);s.appendChild(d)});crateUI()}
+function openMenu(){active=false;firing=false;renderShop();$("ov").style.display="flex";if(document.pointerLockElement)document.exitPointerLock()}
+let wn=0;function win(n){wn=1;const b=$("ban");b.textContent="🏆 "+n+" wins the match!";b.style.display="block";setTimeout(()=>{b.style.display="none";me.k=me.d=0;wn=0;score()},5000)}
+renderShop();
+$("go").onclick=()=>{me.name=($("nick").value.trim()||me.name).slice(0,12);if(!started){started=true;connect($("room").value)}
+ try{const r=cv.requestPointerLock();if(r&&r.catch)r.catch(()=>{drag=true;active=true;$("ov").style.display="none"})}catch(e){drag=true;active=true;$("ov").style.display="none"}};
+// ---- effects
+const tr=[],ray=new THREE.Raycaster(),ok3=a=>Array.isArray(a)&&a.length===3&&a.every(Number.isFinite);
+function tracer(o,e){if(!ok3(o)||!ok3(e))return;const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...o),new THREE.Vector3(...e)]),new THREE.LineBasicMaterial({color:0xffe27a}));scene.add(l);tr.push({l,t:.07})}
+function flash(){const f=$("fl");f.style.transition="none";f.style.opacity=.45;requestAnimationFrame(()=>{f.style.transition="opacity .3s";f.style.opacity=0})}
+function hitmark(){const x=$("xh");x.classList.add("h");setTimeout(()=>x.classList.remove("h"),110)}
+function feed(t){const d=document.createElement("div");d.textContent=t;$("feed").appendChild(d);setTimeout(()=>d.remove(),4500)}
+// ---- networking
+let room=null,remotes={},peersNow=[];
+const myId=()=>room&&room.peers().find(p=>p.isMe&&p.sameTab)?.peer;
+const send=(t,d)=>{if(room)room.emit(t,d).catch(()=>{})};
+const rs=(o,d,cx,cy,cz,r)=>{const x=cx-o.x,y=cy-o.y,z=cz-o.z,t=x*d.x+y*d.y+z*d.z;if(t<0)return null;const d2=x*x+y*y+z*z-t*t;return d2>r*r?null:t-Math.sqrt(r*r-d2)};
+const dk=new THREE.MeshLambertMaterial({color:0x222831}),skinMat=new THREE.MeshLambertMaterial({color:0xf1c9a5});
+function mk(h){const g=new THREE.Group(),m=new THREE.MeshLambertMaterial({color:new THREE.Color().setHSL(h,.7,.5)});
+ const b=new THREE.Mesh(new THREE.BoxGeometry(.7,1.1,.4),m);b.position.y=.85;const hd=new THREE.Mesh(new THREE.BoxGeometry(.4,.4,.4),skinMat);hd.position.y=1.65;
+ const gn=new THREE.Mesh(new THREE.BoxGeometry(.12,.14,.7),dk);gn.position.set(.35,1,-.4);const lg=new THREE.Mesh(new THREE.BoxGeometry(.5,.3,.3),dk);lg.position.y=.15;
+ g.add(b,hd,gn,lg);scene.add(g);return g}
+const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h/360};
+const num=(v,m)=>Number.isFinite(v)?Math.max(-m,Math.min(m,v)):0;
+function score(){const rows=[{n:me.name+" (you)",k:me.k,d:me.d},...peersNow.filter(p=>!p.sameTab).map(p=>({n:String(p.presence.n||"Player").slice(0,12),k:+p.presence.k||0,d:+p.presence.d||0}))].sort((a,b)=>b.k-a.k);
+ const s=$("sb");s.textContent="";rows.slice(0,8).forEach(r=>{const d=document.createElement("div"),a=document.createElement("span"),b=document.createElement("span");a.textContent=r.n;b.textContent=r.k+" / "+r.d;d.append(a,b);s.appendChild(d)});const h=document.createElement("div");h.style.opacity=.6;h.textContent="kills / deaths";s.appendChild(h)}
+function die(by){me.alive=false;me.hp=0;me.d++;hud();$("dead").style.display="block";send("kill",{k:by});setTimeout(spawn,2500)}
+async function connect(code){
+ code=(code||"").toLowerCase().replace(/[^a-z0-9_.-]/g,"").replace(/^[^a-z0-9]+/,"").slice(0,48)||"arena1";
+ try{room=await fbRoom(code);
+  room.onPeers(ch=>{peersNow=ch.peers;const seen={};
+   for(const p of ch.peers){if(p.sameTab)continue;seen[p.peer]=1;const r=remotes[p.peer]||(remotes[p.peer]={g:mk(hue(p.peer)),first:true}),q=p.presence;
+    r.tx=num(+q.x,40);r.ty=num(+q.y,20);r.tz=num(+q.z,40);r.yaw=num(+q.r,100);r.g.visible=q.a===1;r.n=String(q.n||"Player").slice(0,12);
+    if(r.first){r.g.position.set(r.tx,r.ty,r.tz);r.first=false}}
+   for(const id in remotes)if(!seen[id]){scene.remove(remotes[id].g);delete remotes[id]}
+   $("st").textContent="Room “"+code+"” · "+Math.max(0,Object.keys(remotes).length+1)+" player(s)";score()},e=>{$("st").textContent="Room error: "+e.code});
+  room.on("shot",m=>{if(m.sameTab||!m.data||!Array.isArray(m.data.e))return;m.data.e.slice(0,8).forEach(e=>tracer(m.data.o,e))});
+  room.on("hit",m=>{const d=m.data;if(m.sameTab||!d||d.to!==myId()||!me.alive)return;me.hp-=Math.max(0,Math.min(100,+d.dmg||0));flash();hud();if(me.hp<=0)die(m.peer)});
+  room.on("kill",m=>{const d=m.data||{};if(d.win){if(!m.sameTab)win(String(d.win).slice(0,12));return}const v=m.sameTab?me.name:(remotes[m.peer]?.n||"Someone"),k=d.k===myId()?me.name:(remotes[d.k]?.n||"Someone");feed(k+" ›› "+v);if(!m.sameTab&&d.k===myId()){me.k++;coins+=25;save();wpTxt();score();if(me.k>=10&&!wn){coins+=150;save();wpTxt();send("kill",{win:me.name});win(me.name)}}});
+  setInterval(()=>{const f=n=>+n.toFixed(2);room.presence({x:f(me.p.x),y:f(me.p.y),z:f(me.p.z),r:f(me.yaw),a:me.alive?1:0,w:me.w,k:me.k,d:me.d,n:me.name}).catch(e=>{$("st").textContent="Can’t send position: "+(e&&e.code)})},70);
+ }catch(e){room=null;$("st").textContent="Offline solo practice — "+((e&&e.message)||"could not connect");score()}}
+$("st").textContent="Not connected";score();
+// ---- shooting
+function fire(){if(me.cd>0||!me.alive)return;const W=WP[me.w];me.cd=W.r;vm.position.z=-.42;
+ const o=cam.position.clone(),base=new THREE.Vector3();cam.getWorldDirection(base);const ends=[],dmg={},mz=cam.localToWorld(new THREE.Vector3(.3,-.25,-.7));
+ for(let i=0;i<W.p;i++){const d=base.clone();d.x+=(Math.random()-.5)*W.s*2;d.y+=(Math.random()-.5)*W.s*2;d.z+=(Math.random()-.5)*W.s*2;d.normalize();
+  ray.set(o,d);ray.far=W.rng;const wl=ray.intersectObjects(solids)[0];let tm=wl?wl.distance:W.rng,hit=null,hs=false;
+  for(const id in remotes){const g=remotes[id].g;if(!g.visible)continue;let h=true,t=rs(o,d,g.position.x,g.position.y+1.65,g.position.z,.28);
+   if(t==null||t>tm){h=false;t=rs(o,d,g.position.x,g.position.y+.85,g.position.z,.5)}
+   if(t!=null&&t<tm){tm=t;hit=id;hs=h}}
+  if(hit)dmg[hit]=(dmg[hit]||0)+W.d*(hs?2:1);
+  ends.push(o.clone().addScaledVector(d,tm).toArray().map(v=>+v.toFixed(2)))}
+ if(W.n!=="Knife"){const m=mz.toArray().map(v=>+v.toFixed(2));ends.forEach(e=>tracer(m,e));send("shot",{o:m,e:ends})}
+ for(const id in dmg){send("hit",{to:id,dmg:Math.min(100,dmg[id])});hitmark()}}
+// ---- loop
+let last=performance.now();
+function loop(t){requestAnimationFrame(loop);const dt=Math.min(.05,(t-last)/1e3);last=t;
+ if(active&&me.alive){const f=(keys.KeyW?1:0)-(keys.KeyS?1:0),s=(keys.KeyD?1:0)-(keys.KeyA?1:0);
+  let vx=-Math.sin(me.yaw)*f+Math.cos(me.yaw)*s,vz=-Math.cos(me.yaw)*f-Math.sin(me.yaw)*s;const l=Math.hypot(vx,vz);if(l>0){vx*=SPD*dt/l;vz*=SPD*dt/l}
+  if(!blocked(me.p.x+vx,me.p.z,me.p.y))me.p.x+=vx;if(!blocked(me.p.x,me.p.z+vz,me.p.y))me.p.z+=vz;
+  const g=ground(me.p.x,me.p.z,me.p.y);if(keys.Space&&me.gr){me.vy=8.5;me.gr=0}me.vy-=24*dt;me.p.y+=me.vy*dt;if(me.p.y<=g||(me.gr&&me.vy<=0&&me.p.y-g<.4)){me.p.y=g;me.vy=0;me.gr=1}else me.gr=0
+  me.cd-=dt;if(firing)fire()}
+ cam.position.set(me.p.x,me.p.y+(me.alive?1.6:.35),me.p.z);cam.rotation.set(me.pitch,me.yaw,me.alive?0:1.2);
+ vm.visible=me.alive;vm.position.z+=(-.6-vm.position.z)*Math.min(1,dt*14);
+ for(const id in remotes){const r=remotes[id],g=r.g,k=Math.min(1,dt*12);g.position.x+=(r.tx-g.position.x)*k;g.position.y+=(r.ty-g.position.y)*k;g.position.z+=(r.tz-g.position.z)*k;g.rotation.y=r.yaw}
+ for(let i=tr.length-1;i>=0;i--){tr[i].t-=dt;if(tr[i].t<0){scene.remove(tr[i].l);tr[i].l.geometry.dispose();tr.splice(i,1)}}
+ rend.render(scene,cam)}
+requestAnimationFrame(loop);
+</script></body></html>
