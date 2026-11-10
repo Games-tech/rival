@@ -49,7 +49,16 @@ html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
 // ===== PASTE YOUR FIREBASE CONFIG HERE (see SETUP.md) =====
-const FIREBASE_CONFIG={apiKey:"PASTE_API_KEY",authDomain:"YOUR_PROJECT.firebaseapp.com",databaseURL:"https://YOUR_PROJECT-default-rtdb.firebaseio.com",projectId:"YOUR_PROJECT",appId:"PASTE_APP_ID"};
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyAUhfPXUFtRnwCx4QdYCGiZK6s5QGf7fdE",
+  authDomain:"rival-6828d.firebaseapp.com",
+  databaseURL:"https://rival-6828d-default-rtdb.firebaseio.com",
+  projectId:"rival-6828d",
+  storageBucket:"rival-6828d.firebasestorage.app",
+  messagingSenderId:"447424336140",
+  appId:"1:447424336140:web:4f407f33c04503f36c7929",
+  measurementId:"G-RL0EHX3LS2"
+};
 // ==========================================================
 // Small adapter so the game talks to Firebase through the same calls it used for the Claude room.
 async function fbRoom(code){
